@@ -10,6 +10,9 @@ docker\-storage\-setup - Grows the root filesystem and sets up storage for docke
 \f[B]-h, --help\f[]
   Print usage statement
 
+\f[B]--machine-readable-status\f[]
+  Show current status in machine-readable form, and then exit
+
 .SH EXAMPLES
 Run \f[B]docker-storage-setup\f[] after setting up your configuration in
 /etc/sysconfig/docker-storage-setup. One can look at
@@ -121,6 +124,34 @@ DEVS=/dev/vdb
 DATA_SIZE=8GB
 
 .fi
+
+.SH MACHINE READABLE STATUS
+Running \f[B]docker-storage-setup --machine-readable-status\f[] will
+output a summary of the current status.  The output consists of lines
+that are divided into fields by ":" characters.  The first field
+indicates the type of the line and determines the meaning of the
+remaining fields.
+
+The following kinds of lines are currently defined.  More might be
+defined in the future.
+
+dev:<path>:<flags>
+        Indicates that the block device with the given <path> is used
+        as part of the volume group that contains the Docker storage
+        pool, or is listed in DEVS.
+
+        The <flags> field is a comma separated list of words that give
+        more information.
+
+        The "pool" flag indicates that the device is part of the
+        volume group.
+
+        The "other" flag indicates that the device contains some part
+        of a logical volume that is not the Docker storage pool, such
+        as swap or the root filesystem.
+
+        The "config" flag indicates that the device is listed in the
+        DEVS configuration option.
 
 .SH HISTORY
 

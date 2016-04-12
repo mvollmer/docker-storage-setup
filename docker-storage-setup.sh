@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #--
-# Copyright 2014-2015 Red Hat, Inc.
+# Copyright 2014-2016 Red Hat, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -744,6 +744,81 @@ setup_storage() {
   fi
 }
 
+# Status
+
+ls_parents() {
+    lsblk "$1" -l -s -p -o NAME -n
+}
+
+ls_lvol_parents() {
+    ls_parents $(lvs --no-headings -o lv_dmpath $1)
+}
+
+is_member() {
+    needle=$1; shift
+    for hay in $@; do
+        if [ "$needle" == "$hay" ]; then
+            return 0
+        fi
+    done
+    return 1
+}
+
+show_dev_status() {
+    dev=$1; shift
+    flags=$@
+
+    comma_flags=""
+    for f in $flags; do comma_flags="$comma_flags,$f"; done
+
+    echo dev:$dev:$(echo $comma_flags | sed 's/^,//')
+}
+
+show_machine_readable_status() {
+    pvs=$(pvs --noheadings -o pv_name,vg_name | awk "\$2 ~ /^$VG\$/ { print \$1 }" )
+    lvs=$(lvs --noheadings -o name $VG)
+    other_parents=
+    config_parents=
+
+    for lv in $lvs; do
+        lv_parents=$(ls_lvol_parents $VG/$lv)
+        if [ $lv != $POOL_LV_NAME ]; then
+            other_parents="$other_parents $lv_parents"
+        fi
+    done
+
+    for pv in $pvs; do
+        dev=$pv
+        config=
+        other=
+        for d in $DEVS; do
+            if is_member $d $(ls_parents $pv); then
+                dev=$d
+                config="config"
+                break
+            fi
+        done
+        if is_member $pv $other_parents; then
+            other="other"
+        fi
+
+        show_dev_status $dev pool $config $other
+    done
+
+    for d in $DEVS; do
+        missing=t
+        for pv in $pvs; do
+            if is_member $d $(ls_parents $pv); then
+                missing=
+                break
+            fi
+        done
+        if [ -n "$missing" ]; then
+            show_dev_status $d config
+        fi
+    done
+}
+
 usage() {
   cat >&2 <<-FOE
     Usage: $1 [OPTIONS]
@@ -752,10 +827,35 @@ usage() {
 
     Options:
       -h, --help    Print help message
+          --status  Show current status
+
+          --machine-readable-status
+                    Show current status in machine readable form
 FOE
 }
 
 # Main Script
+
+do_machine_readable_status=
+
+args=$(getopt -o "h" -l "help,machine-readable-status" -- "$@")
+eval set -- "$args"
+while [ $# -gt 0 ]; do
+    case $1 in
+    -h|--help)
+        usage $(basename $0)
+        exit 0
+        ;;
+    --machine-readable-status)
+        do_machine_readable_status=t
+        ;;
+    --)
+        shift
+        break
+        ;;
+    esac
+    shift
+done
 
 if [ $# -gt 0 ]; then
   usage $(basename $0)
@@ -794,7 +894,7 @@ fi
 
 ROOT_PVS=
 if [ -n "$ROOT_VG" ];then
-  ROOT_PVS=$( pvs --noheadings -o pv_name,vg_name | awk "\$2 ~ /^$ROOT_VG\$/ { print \$1 }" )
+  ROOT_PVS=$(pvs --noheadings -o pv_name,vg_name | awk "\$2 ~ /^$ROOT_VG\$/ { print \$1 }" )
 fi
 
 VG_EXISTS=
@@ -807,6 +907,11 @@ else
   if vg_exists "$VG";then
     VG_EXISTS=1
   fi
+fi
+
+if [ -n "$do_machine_readable_status" ]; then
+    show_machine_readable_status
+    exit 0
 fi
 
 # If there is no volume group specified or no root volume group, there is
