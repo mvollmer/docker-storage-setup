@@ -578,6 +578,11 @@ EOF
     if ! wait_for_dev ${dev}1; then
       Fatal "Partition device ${dev}1 is not available"
     fi
+    # Sometimes there is still a old filesystem signature where we
+    # have just created our new partition.  Pvcreate will find it and
+    # ask for confirmation to overwrite it.  So we wipe the new
+    # partition first.
+    wipefs -a ${dev}1
     pvcreate ${dev}1
     PVS="$PVS ${dev}1"
   done
