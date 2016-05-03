@@ -1,0 +1,36 @@
+source $SRCDIR/libtest.sh
+
+cleanup() {
+  local vg_name=$1
+  local devs=$2
+  $DSSBIN --reset >> $LOGS 2>&1
+  test -e /etc/sysconfig/docker-storage && echo "ERROR: $0: Failed." && exit 1
+  clean_config_files
+  wipe_signatures "$devs"
+}
+
+# Test DEVS= directive. Returns 0 on success and 1 on failure.
+test_overlay() {
+  local testname=`basename "$0"`
+
+  # Create config file
+  clean_config_files
+  cat << EOF > /etc/sysconfig/docker-storage-setup
+STORAGE_DRIVER=overlayfs
+EOF
+
+ # Run docker-storage-setup
+ $DSSBIN >> $LOGS 2>&1
+
+ # Test failed.
+ if [ $? -ne 0 ]; then
+    echo "ERROR: $testname: Failed."
+    cleanup
+    return 1
+ fi
+
+  cleanup
+  return 0
+}
+
+test_overlay
