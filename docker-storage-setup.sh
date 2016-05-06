@@ -837,6 +837,28 @@ reset_storage() {
     rm -f $DOCKER_STORAGE
 }
 
+maybe_wipe_disk() {
+    # Wipe $1 if it has a partition table with exactly one partition
+    base=$(basename $1)
+    partcount=$(awk "\$4 ~ /^${base}[0-9]+/ {count += 1} END { print count; }" /proc/partitions)
+    if [ "$partcount" == "1" ]; then
+        wipefs -a $1
+    fi
+}
+
+reduce_storage() {
+    if [ -n "$VG" ]; then
+        pvs=$(pvs --noheadings -o pv_name,vg_name | awk "\$2 ~ /^$VG\$/ { print \$1 }" )
+        for pv in $pvs; do
+            if [ $(pvs --noheadings --unit B -o pv_used $pv) == "0B" ]; then
+                vgreduce $VG $pv
+                wipefs -a $pv
+                maybe_wipe_disk $(echo $pv | sed -r 's/([^0-9]*)([0-9]+)/\1/')
+            fi
+        done
+    fi
+}
+
 usage() {
   cat <<-FOE
     Usage: $1 [OPTIONS]
@@ -845,6 +867,12 @@ usage() {
 
     Options:
      --help    Print help message
+
+     --reset   Remove all images and reset storage
+
+     --reset-and-reduce
+               Remove all images, reset storage, and reduce
+               the storage pool to its minimum size
 FOE
 }
 
@@ -903,6 +931,10 @@ if [ $# -gt 0 ]; then
         exit 0
     elif [ "$1" == "--reset" ]; then
 	reset_storage
+	exit 0
+    elif [ "$1" == "--reset-and-reduce" ]; then
+	reset_storage
+        reduce_storage
 	exit 0
     else
         usage $(basename $0) >&2
