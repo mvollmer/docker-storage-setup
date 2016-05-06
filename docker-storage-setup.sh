@@ -838,13 +838,13 @@ reset_storage() {
 }
 
 usage() {
-  cat >&2 <<-FOE
+  cat <<-FOE
     Usage: $1 [OPTIONS]
 
     Grows the root filesystem and sets up storage for docker
 
     Options:
-      -h, --help    Print help message
+     --help    Print help message
 FOE
 }
 
@@ -898,12 +898,16 @@ fi
 # Main Script
 
 if [ $# -gt 0 ]; then
-    if [ "$1" == "--reset" ]; then
+    if [ "$1" == "--help" ]; then
+        usage $(basename $0)
+        exit 0
+    elif [ "$1" == "--reset" ]; then
 	reset_storage
 	exit 0
+    else
+        usage $(basename $0) >&2
+        exit 1
     fi
-    usage $(basename $0)
-    exit 0
 fi
 
 # If there is no volume group specified or no root volume group, there is
