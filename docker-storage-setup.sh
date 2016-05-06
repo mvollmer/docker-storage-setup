@@ -868,6 +868,9 @@ usage() {
     Options:
      --help    Print help message
 
+     --add DEV ...
+               Add the given block devices to the storage pool
+
      --reset   Remove all images and reset storage
 
      --reset-and-reduce
@@ -929,6 +932,9 @@ if [ $# -gt 0 ]; then
     if [ "$1" == "--help" ]; then
         usage $(basename $0)
         exit 0
+    elif [ "$1" == "--add" ]; then
+        shift
+        DEVS=$@
     elif [ "$1" == "--reset" ]; then
 	reset_storage
 	exit 0
