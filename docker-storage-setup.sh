@@ -916,6 +916,9 @@ if [ $# -gt 0 ]; then
     elif [ "$1" == "--reset" ]; then
 	reset_storage
 	exit 0
+    elif [ "$1" == "--show-vgroup" ]; then
+        echo $VG
+	exit 0
     else
         usage $(basename $0) >&2
 	exit 1
