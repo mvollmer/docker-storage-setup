@@ -12,10 +12,16 @@ docker\-storage\-setup - Grows the root filesystem and sets up storage for docke
 
 \f[B]--reset\f[]
   Reset your docker storage to init state. Reset does not try to remove volume groups or try to remove any of the disks added previously.
-  
+
 Note: The
 \f[B]--reset\f[]
 command is not sufficient to cleanup your docker environment.  This option is used by other tools. (\f[B]atomic storage reset\f[])
+
+\f[B]--dump-config\f[]
+  Write part of the configuration to stdout in a machine readable
+  format.  Note that this does not describe the current Docker
+  storage setup, but only what docker-storage-setup will try to setup
+  on its next run.
 
 .SH EXAMPLES
 Run \f[B]docker-storage-setup\f[] after setting up your configuration in

@@ -848,6 +848,17 @@ reset_storage() {
     rm -f $DOCKER_STORAGE
 }
 
+# Config dumping
+
+dump_config() {
+    echo STORAGE_DRIVER=$STORAGE_DRIVER
+    echo VG=$VG
+    if [ "$STORAGE_DRIVER" == "devicemapper" ]; then
+        echo LV=$POOL_LV_NAME
+    fi
+    echo DEVS=$DEVS
+}
+
 usage() {
   cat <<-FOE
     Usage: $1 [OPTIONS]
@@ -856,7 +867,10 @@ usage() {
 
     Options:
       --help    Print help message
-      --reset   Reset your docker storage to init state. 
+      --reset   Reset your docker storage to init state.
+
+      --dump-config
+                Dump part of the configuration.
 FOE
 }
 
@@ -915,6 +929,9 @@ if [ $# -gt 0 ]; then
 	exit 0
     elif [ "$1" == "--reset" ]; then
 	reset_storage
+	exit 0
+    elif [ "$1" == "--dump-config" ]; then
+        dump_config
 	exit 0
     else
         usage $(basename $0) >&2
