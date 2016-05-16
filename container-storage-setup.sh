@@ -414,7 +414,7 @@ remove_systemd_mount_target () {
   local mp=$1
   local filename=$(systemd_escaped_filename $mp)
   if [ -f /etc/systemd/system/$filename ]; then
-      if [ -x /usr/bin/systemctl ];then      
+      if [ -x /usr/bin/systemctl ];then
 	  systemctl disable $filename >/dev/null 2>&1
 	  systemctl stop $filename >/dev/null 2>&1
 	  systemctl daemon-reload
@@ -681,13 +681,12 @@ canonicalize_block_devs() {
 scan_disks() {
   local new_disks=""
 
-  for dev in $_DEVS_ABS; do
-    local basename=$(basename $dev)
-    local p
+  for dev in $DEVS_ABS; do
+    local part=$(query_first_child $dev)
 
-    if is_dev_part_of_vg ${dev}1 $VG; then
-      Info "Device ${dev} is already partitioned and is part of volume group $VG"
-      continue
+    if [ -n "$part" ] && is_dev_part_of_vg ${part} $VG; then
+        Info "Device ${dev} is already partitioned and is part of volume group $VG"
+        continue
     fi
 
     # If signatures are being overridden, then simply return the disk as new
@@ -698,8 +697,7 @@ scan_disks() {
     fi
 
     # If device does not have partitions, it is a new disk requiring processing.
-    p=$(awk "\$4 ~ /${basename}./ {print \$4}" /proc/partitions)
-    if [[ -z "$p" ]]; then
+    if [ -z "$part" ]; then
       new_disks="$dev $new_disks"
       continue
     fi
@@ -716,12 +714,11 @@ create_partition_sfdisk(){
   # TODO:
   #   * Consider gpt, or unpartitioned volumes
   #   * Error handling when partition(s) already exist
-  #   * Deal with loop/nbd device names. See growpart code
   size=$(( $( awk "\$4 ~ /"$( basename $dev )"/ { print \$3 }" /proc/partitions ) * 2 - 2048 ))
     cat <<EOF | sfdisk $dev
 unit: sectors
 
-${dev}1 : start=     2048, size=  ${size}, Id=8e
+start=     2048, size=  ${size}, Id=8e
 EOF
 }
 
@@ -744,27 +741,28 @@ create_partition() {
   if ! udevadm settle;then
     Fatal "udevadm settle after partition creation failed. Exiting."
   fi
+}
 
-  if ! wait_for_dev ${dev}1; then
-    Fatal "Partition device ${dev}1 is not available"
-  fi
+query_first_child() {
+    lsblk -npl -o NAME "$1" | tail -n +2 | head -1
 }
 
 create_disk_partitions() {
-  local devs="$1"
+  local devs="$1" part
 
   for dev in $devs; do
     create_partition $dev
+    part=$(query_first_child $dev)
 
     # By now we have ownership of disk and we have checked there are no
     # signatures on disk or signatures should be wiped. Don't care
     # about any signatures found in the middle of disk after creating
     # partition and wipe signatures if any are found.
-    if ! wipefs -a ${dev}1; then
-      Fatal "Failed to wipe signatures on device ${dev}1"
+    if ! wipefs -a ${part}; then
+      Fatal "Failed to wipe signatures on device ${part}"
     fi
-    pvcreate ${dev}1
-    _PVS="$_PVS ${dev}1"
+    pvcreate ${part}
+    _PVS="$PVS ${part}"
   done
 }
 
@@ -1181,7 +1179,7 @@ usage() {
 
     Options:
       --help    Print help message
-      --reset   Reset your docker storage to init state. 
+      --reset   Reset your docker storage to init state.
       --version Print version information.
 FOE
 }
